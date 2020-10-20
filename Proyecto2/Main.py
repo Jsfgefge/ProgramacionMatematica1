@@ -7,7 +7,7 @@ from matplotlib import colors #Para los colores de las celulas
 import matplotlib.animation as animation
 import numpy as np #Tengo entendido que para el uso de matrices
 
-ON = 255
+ON = 1
 OFF = 0
 pause = False
 def update(frame, img, grid, N):
@@ -17,7 +17,7 @@ def update(frame, img, grid, N):
 			total = int((grid[i, (j - 1) % N] + grid[i, (j + 1) % N] +
 						 grid[(i - 1) % N, j] + grid[(i + 1) % N, j] +
 						 grid[(i - 1) % N, (j - 1) % N] + grid[(i - 1) % N, (j + 1) % N] +
-						 grid[(i + 1) % N, (j - 1) % N] + grid[(i + 1) % N, (j + 1) % N]) / 255)
+						 grid[(i + 1) % N, (j - 1) % N] + grid[(i + 1) % N, (j + 1) % N]))
 
 
 			#Reglas del juego
@@ -35,9 +35,9 @@ def main():
 	N = 10
 	updateInterval = 10
 	data = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-			[255, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-			[0, 255, 255, 0, 0, 0, 0, 0, 0, 0],
-			[255, 255, 0, 0, 0, 0, 0, 0, 0, 0],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+			[0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+			[1, 1, 0, 0, 0, 1, 0, 0, 0, 0],
 			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -45,13 +45,11 @@ def main():
 			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 			[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
 	grid = np.array(data)
-
-
 	# Basicamente para colorear
-	cmap = colors.ListedColormap(['blue', 'red'])  # Para seleccionar que color queremos
+	cmap = colors.ListedColormap(['blue','red'])  # Para seleccionar que color queremos
 	bounds = [0, 1, 2]  # Para verificar que valores tienen que ser rojo y cuales azules (0=azul,1=rojo)
 	norm = colors.BoundaryNorm(bounds, cmap.N)  # Para colorear el grid
-
+	#Generacion del Grid y su animacion
 	fig, ax = plt.subplots()
 	img = ax.imshow(grid, cmap=cmap, norm=norm)
 	ani = animation.FuncAnimation(fig, update, fargs=(img, grid, N,),
@@ -72,6 +70,13 @@ def main():
 
 	fig.canvas.mpl_connect('button_press_event', onClick)
 
+	ax.set_xticks(np.arange(0.48, 10, 1))
+	ax.set_yticks(np.arange(0.48, 10, 1))
+
+	ax.set_yticklabels([])
+	ax.set_xticklabels([])
+	plt.grid()
+	plt.tight_layout()
 	plt.show()
 
 
