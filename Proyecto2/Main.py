@@ -9,12 +9,16 @@ import matplotlib as mlp
 from matplotlib import colors #Para los colores de las celulas
 import matplotlib.animation as animation
 import numpy as np #Tengo entendido que para el uso de matrices
+from numpy import save
 
 from matplotlib.backends.backend_gtk3agg import (
     FigureCanvasGTK3Agg as FigureCanvas)
 from matplotlib.figure import Figure
 
 import os
+import webbrowser
+from datetime import datetime
+
 
 UI_INFO = """
 <ui>
@@ -53,6 +57,7 @@ class ventana(Gtk.Window):
 
 		#Para iniciar el programa con un grid 'muerto'
 		self.grid = np.zeros((self.dimensionMatriz,self.dimensionMatriz), dtype=int)
+		self.gridIni = np.zeros((self.dimensionMatriz,self.dimensionMatriz), dtype=int)
 
 		#Inicializacion de lo necesario para la animacion
 		self.figure = mlp.figure.Figure()
@@ -102,7 +107,9 @@ class ventana(Gtk.Window):
 		:param event:
 		:return:
 		'''
-		self.figure.savefig(os.getcwd()+'/capturas/hola'+str(self.conteo)+'.png')
+		now = datetime.now()
+		titulo = str(now.day) + '-' + str(now.month) + '-' + str(now.day) + '  ' + str(now.hour) + ':' + str(now.minute)
+		self.figure.savefig(os.getcwd()+'/capturas/'+titulo+'.png')
 
 	def create_ui_manager(self):
 		'''
@@ -223,11 +230,20 @@ class ventana(Gtk.Window):
 			Gtk.ResponseType.OK
 		)
 		response = dialog.run()
-		self.onClick(response)
-		self.anim_running = False
+		#self.onClick(response)
+		#self.anim_running = False
 		if response == Gtk.ResponseType.OK:
 			self.ruta = dialog.get_filename()
-			self.grid = np.genfromtxt(self.ruta, dtype='i', delimiter=' ', skip_header=1)
+			file = open(self.ruta, "r")
+			line_count = 0
+			for line in file:
+				if line != "\n":
+					line_count += 1
+			file.close()
+			skip = int(line_count)-(int(self.dimensionMatriz)+1)#Esto es para permitir leer archivos jvpm2 al tomar los
+																#mismos datos que hay en un archivo pm2
+			self.gridIni = np.genfromtxt(self.ruta, dtype='i', delimiter=' ', skip_header=1, skip_footer=skip)
+			self.grid = np.genfromtxt(self.ruta, dtype='i', delimiter=' ', skip_header=1, skip_footer=skip)
 			self.conteo = 1
 			self.onClick(response) #Avanza un solo frame para cargar el estado en el ScrolledWindow
 			self.anim_running = False
@@ -236,11 +252,34 @@ class ventana(Gtk.Window):
 		dialog.destroy()
 
 	def guardarEstado(self, widget):
-		print('coso guardar')
+		coso1 = ''
+		coso2 = ''
+		turnosP = str(self.conteo)
+		now = datetime.now()
+		#Estos for recorden la matrix y luego cada fila y las concatena en una variable string para su posterior
+		#almacenamiento
+		for row in self.grid:
+			for element in row:
+				coso1+=str(element)+' '
+			coso1+='\n'
+		for row in self.gridIni:
+			for element in row:
+				coso2+=str(element)+' '
+			coso2+='\n'
+		titulo = str(now.day)+'-'+str(now.month)+'-'+str(now.day)+'  '+str(now.hour)+':'+str(now.minute)
+		a_file = open(titulo+'.jvpm2', 'w+')
+		a_file.write(str(self.dimensionMatriz)+'\n')
+		contenido = coso1
+		a_file.write(contenido)
+		a_file.write('Turnos jugados: '+turnosP+'\n')
+		a_file.write(coso2)
+		a_file.close()
 
 	def random(self, widget):
 		#Genera una configuracion random
-		self.grid = self.randomGrid(self.dimensionMatriz)
+		temp = self.randomGrid(self.dimensionMatriz)
+		self.gridIni = np.copy(temp)
+		self.grid = np.copy(self.gridIni)
 		self.onClick(widget)
 		self.anim_running = False
 
@@ -264,7 +303,7 @@ class ventana(Gtk.Window):
 		acercaDe.destroy()
 
 	def codigoVida(self, widget):
-		pass
+		webbrowser.open_new_tab("https://github.com/Jsfgefge/ProgramacionMatematica1/blob/master/Proyecto2/Main.py")
 
 	def randomGrid(self,N):
 		#Genera una matriz aleatoria
@@ -400,7 +439,7 @@ class ventana(Gtk.Window):
 		self.ani = animation.FuncAnimation(self.figure, reglas, fargs=(img, self.grid, self.dimensionMatriz),
 										   frames=100,
 										   interval=self.intervaloActu,
-										   save_count=1,
+										   save_count=100,
 										   repeat=True)
 
 		#Estos eventos se activan al cumplirse la accion entre comillas
