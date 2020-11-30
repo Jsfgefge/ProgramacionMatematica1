@@ -51,7 +51,7 @@ class ventana(Gtk.Window):
 		self.anim_running = False
 		self.fronteras = 'Normal'
 		self.intervaloActu = 100
-		self.dimensionMatriz = 10
+		self.dimensionMatriz = 100
 		self.conteo = 1
 		self.ruta = ''
 
