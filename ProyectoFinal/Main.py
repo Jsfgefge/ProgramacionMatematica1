@@ -4,6 +4,7 @@ from gi.repository import Gtk, Gdk, GdkPixbuf
 import time
 import random
 import math
+import tweepy
 
 from PIL import Image,ImageFont,ImageDraw, ImageOps, ImageChops
 
@@ -42,14 +43,22 @@ class ventana(Gtk.Window):
 	def __init__(self):
 		Gtk.Window.__init__(self, title='ASCII art')
 
+		self.carga = 'No'
+		self.sesion = 'No'
 		self.state = False
 		self.img = Gtk.Image()
 		self.imgRes = Gtk.Image()
 		self.imgPIL = Image.Image
+		self.imgPILASCII = Image.Image
 		st = '"$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,^.'
 		#st = '$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\^'
 		self.charsList = list(st)
 		self.chars = self.charsList
+
+		self.APIkey = ''
+		self.APIkeyS = ''
+		self.AccessToken = ''
+		self.AccessTokenS = ''
 
 
 		btnConvertir = Gtk.Button(label='Convertir')
@@ -59,8 +68,9 @@ class ventana(Gtk.Window):
 		self.btnGuardar = Gtk.Button(label='Guardar')
 		self.btnGuardar.connect('clicked', self.guardar)
 		self.btnGuardar.set_sensitive(False)
-		btnSubir = Gtk.Button(label='Subir')
-		btnSubir.connect('clicked', self.subir)
+		self.btnSubir = Gtk.Button(label='Subir')
+		self.btnSubir.connect('clicked', self.subir)
+		self.btnSubir.set_sensitive(False)
 		btnGrises = Gtk.Button(label='Grises')
 		btnGrises.connect('clicked', self.grises)
 
@@ -98,7 +108,7 @@ class ventana(Gtk.Window):
 		container.attach(btnConvertir, 74, 25, 3, 1)
 		container.attach(btnInvertir, 74, 26, 3, 1)
 		container.attach(self.btnGuardar, 74, 27, 3, 1)
-		container.attach(btnSubir, 74, 28, 3, 1)
+		container.attach(self.btnSubir, 74, 28, 3, 1)
 		container.attach(btnGrises, 74, 29, 3, 1)
 		#container.attach(btnPrueba, 74, 30, 3, 1)
 		self.add(container)
@@ -106,6 +116,7 @@ class ventana(Gtk.Window):
 		self.set_default_size(-1,500)
 		self.set_resizable(False)
 
+		self.verificarSesion()
 
 
 
@@ -132,7 +143,7 @@ class ventana(Gtk.Window):
 
 
 	def resize(self,img, new_width=100):
-		im = self.imgPIL
+		im = img
 		w,h = im.size
 		new_height = math.ceil(new_width * h / w)
 		return im.resize((new_width, new_height))
@@ -183,22 +194,64 @@ class ventana(Gtk.Window):
 			height=550,
 			preserve_aspect_ratio=True)
 		self.imgRes.set_from_pixbuf(pixbuf)
-		#os.remove(ruta)
+		self.imgPILASCII = Image.open(ruta)
+		os.remove(ruta)
 
 		l = self.action.list_actions()
 		for i in l:
 			if i.get_name() == 'guardarASCII':
 				i.set_sensitive(True)
 		self.btnGuardar.set_sensitive(True)
-
-	def grises(self, widget):
-		pass
+		self.carga='Si'
+		if self.sesion == 'Si':
+			self.btnSubir.set_sensitive(True)
+		if self.sesion == 'No':
+			self.btnSubir.set_sensitive(False)
 
 	def invertir(self,widget,name):
 		if widget.get_active():
 			self.state = True
 		else:
 			self.state = False
+
+	def verificarSesion(self):
+		ruta = os.getcwd()
+		ruta+='/InicioSesion.txt'
+		if os.path.isfile(ruta):
+			file = open('InicioSesion.txt', 'r')
+			ver = file.readline()[:-1]
+			self.sesion = ver
+			lista = []
+			if ver == 'Si':
+				for i in range(4):
+					lista.append(file.readline()[:-1])
+
+				self.APIkey = lista[0]
+				self.APIkeyS = lista[1]
+				self.AccessToken = lista[2]
+				self.AccessTokenS = lista[3]
+			elif ver == 'No':
+				self.btnSubir.set_sensitive(False)
+
+		else:
+			wr = open('InicioSesion.txt', 'w')
+			wr.write('No')
+			wr.close()
+			file = open('InicioSesion.txt', 'r')
+			ver = file.readline()[:-1]
+			self.sesion = ver
+			lista = []
+			if ver == 'Si':
+				for i in range(4):
+					lista.append(file.readline()[:-1])
+
+				self.APIkey = lista[0]
+				self.APIkeyS = lista[1]
+				self.AccessToken = lista[2]
+				self.AccessTokenS = lista[3]
+			elif ver == 'No':
+				self.btnSubir.set_sensitive(False)
+
 
 
 	def guardar(self,widget):
@@ -233,7 +286,31 @@ class ventana(Gtk.Window):
 		fo.close()
 
 	def subir(self,widget):
-		pass
+		auth = tweepy.OAuthHandler(self.APIkey,self.APIkeyS)
+		auth.set_access_token(self.AccessToken,self.AccessTokenS)
+		#api = tweepy.API(auth, wait_on_rate_limit=True, wait_on_rate_limit_notify=True)
+		api = tweepy.API(auth)
+		temp = self.resize(self.imgPILASCII, new_width=1000)
+		temp.save('temp.png')
+		ruta = os.getcwd()
+		ruta+='/temp.png'
+		header = '#ASCIIArtPM1'
+		api.update_with_media(ruta,header)
+		print('ASCIIArt subido correctamente')
+		os.remove(ruta)
+
+		dialog = Gtk.MessageDialog(
+			transient_for=self,
+			flags=0,
+			message_type=Gtk.MessageType.INFO,
+			buttons=Gtk.ButtonsType.OK,
+			text="Correcto!",
+		)
+		dialog.format_secondary_text(
+			"ASCIIArt subido correctamente"
+		)
+		dialog.run()
+		dialog.destroy()
 
 	def prueba(self,widget):
 		pass
@@ -261,6 +338,117 @@ class ventana(Gtk.Window):
 		b.set_resizable(False)
 		b.show_all()
 
+	def signIn(self,widget):
+
+		def ok(button):
+			self.APIkey = textBoxAPI.get_text()
+			self.APIkeyS = textBoxAPIS.get_text()
+			self.AccessToken = textBoxAccess.get_text()
+			self.AccessTokenS = textBoxAccessS.get_text()
+
+			auth = tweepy.OAuthHandler(self.APIkey, self.APIkeyS)
+			auth.set_access_token(self.AccessToken, self.AccessTokenS)
+			api = tweepy.API(auth)
+			try:
+				api.verify_credentials()
+				self.sesion = 'Si'
+				wr = open('InicioSesion.txt', 'w')
+				wr.write('Si\n')
+				wr.write(textBoxAPI.get_text() + '\n')
+				wr.write(textBoxAPIS.get_text() + '\n')
+				wr.write(textBoxAccess.get_text() + '\n')
+				wr.write(textBoxAccessS.get_text() + '\n')
+
+				if self.carga == 'Si' and self.sesion == 'Si':
+					self.btnSubir.set_sensitive(True)
+
+				dialog = Gtk.MessageDialog(
+					transient_for=self,
+					flags=0,
+					message_type=Gtk.MessageType.INFO,
+					buttons=Gtk.ButtonsType.OK,
+					text="Correcto!",
+				)
+				dialog.format_secondary_text(
+					"Credenciales correctas"
+				)
+				dialog.run()
+				dialog.destroy()
+
+			except:
+				dialog = Gtk.MessageDialog(
+					transient_for=self,
+					flags=0,
+					message_type=Gtk.MessageType.INFO,
+					buttons=Gtk.ButtonsType.OK,
+					text="Error!",
+				)
+				dialog.format_secondary_text(
+					"Credenciales invalidas\nVuelva a intentar"
+				)
+				dialog.run()
+				dialog.destroy()
+
+		def cancelar(widget):
+			signIn.close()
+
+		signIn = Gtk.Window()
+		labelAPI = Gtk.Label(label='API key: ')
+		labelAPIS = Gtk.Label(label='API key secret: ')
+		labelAccess = Gtk.Label(label='Access token: ')
+		labelAccessS = Gtk.Label(label='Access token secret: ')
+		textBoxAPI = Gtk.Entry()
+		textBoxAPIS = Gtk.Entry()
+		textBoxAccess = Gtk.Entry()
+		textBoxAccessS = Gtk.Entry()
+		btnOk = Gtk.Button(label='Ok')
+		btnOk.connect('clicked', ok)
+		btnCancel = Gtk.Button(label='Cancelar')
+		btnCancel.connect('clicked', cancelar)
+
+		container = Gtk.Grid()
+		container.set_row_spacing(5)
+		container.set_column_spacing(5)
+		container.attach(labelAPI, 0, 0, 1, 1)
+		container.attach(labelAPIS, 0, 1, 1, 1)
+		container.attach(labelAccess, 0, 2, 1, 1)
+		container.attach(labelAccessS, 0, 3, 1, 1)
+		container.attach(textBoxAPI, 4, 0, 1, 1)
+		container.attach(textBoxAPIS, 4, 1, 1, 1)
+		container.attach(textBoxAccess, 4, 2, 1, 1)
+		container.attach(textBoxAccessS, 4, 3, 1, 1)
+		container.attach(btnCancel, 0, 4, 2, 2)
+		container.attach(btnOk, 3, 4, 2, 2)
+		signIn.add(container)
+		signIn.set_default_size(-1, -1)
+		signIn.set_resizable(False)
+		signIn.show_all()
+
+	def logOut(self,widget):
+		self.APIkey = ''
+		self.APIkeyS = ''
+		self.AccessToken = ''
+		self.AccessTokenS = ''
+		wr = open('InicioSesion.txt', 'w')
+		wr.write('No\n')
+
+		self.sesion = 'No'
+		self.btnSubir.set_sensitive(False)
+
+		dialog = Gtk.MessageDialog(
+			transient_for=self,
+			flags=0,
+			message_type=Gtk.MessageType.INFO,
+			buttons=Gtk.ButtonsType.OK,
+			text="Exito!",
+		)
+		dialog.format_secondary_text(
+			"Sesion Cerrada con exito."
+		)
+		dialog.run()
+		dialog.destroy()
+
+		self.signIn(widget)
 
 	def menuArchivo(self, action_group):
 		'''
@@ -286,15 +474,12 @@ class ventana(Gtk.Window):
 		:param action_group:
 		:return:
 		'''
-		action_group.add_action(Gtk.Action(name="Twitter", label="Twitter"))
-
-		action_group.add_radio_actions(
+		action_group.add_actions(
 			[
-				("SignIn", None, "SignIn", None, None, 1),
-				("LogOut", None, "LogOut", None, None, 2),
-			],
-			1,
-			#self.superficie,
+				("Twitter", None, "Twitter"),
+				("SignIn", None, 'SignIn', None, None, self.signIn),
+				("LogOut", None, 'Cerrar Sesion', None, None, self.logOut),
+			]
 		)
 
 	def menuAyuda(self, action_group):
@@ -347,6 +532,7 @@ class ventana(Gtk.Window):
 			if i.get_name() == 'guardarASCII':
 				i.set_sensitive(False)
 		self.btnGuardar.set_sensitive(False)
+		self.btnSubir.set_sensitive(False)
 		self.imgRes.clear()
 		dialog.destroy()
 
@@ -359,19 +545,18 @@ class ventana(Gtk.Window):
 	def acercaDe(self, widget):
 		#Abre una ventana
 		acercaDe = Gtk.AboutDialog()
-		acercaDe.set_program_name('El juego de la vida')
+		acercaDe.set_program_name('ASCIIArt')
 		acercaDe.set_authors(['Jsfgefge/AngelMarroquin'])
 		acercaDe.set_comments('Herramientas usadas:\n'
 			'-Python v3.8.5\n'
 			'-Gtk v3.0\n'
-			'-Matplotlib v3.3.2\n'
-			'-Numpy v1.19.2\n')
-		acercaDe.set_title('uwu')
+			'-Tweepy v3.9.0\n')
+		acercaDe.set_title('Acerca De')
 		acercaDe.run()
 		acercaDe.destroy()
 
 	def codigoVida(self, widget):
-		webbrowser.open_new_tab("https://github.com/Jsfgefge/ProgramacionMatematica1/blob/master/Proyecto2/Main.py")
+		webbrowser.open_new_tab("https://github.com/Jsfgefge/ProgramacionMatematica1/blob/master/ProyectoFinal/Main.py")
 
 
 
